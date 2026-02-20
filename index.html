@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sektor 12 Finance App - Edit Supported</title>
+    <title>Sektor 12 Finance App - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -167,11 +167,20 @@
 
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-xl shadow-md overflow-hidden min-h-[500px]">
-                    <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                    <div class="p-4 bg-gray-50 border-b flex flex-wrap justify-between items-center gap-2">
                         <h3 id="table-title" class="font-bold text-slate-700">Buku Kas Umum</h3>
                         
                         <div class="flex space-x-2">
-                            <button onclick="deleteLastTransaction()" class="text-orange-500 hover:text-orange-700 text-xs font-bold bg-orange-50 px-3 py-1 rounded border border-orange-100">
+                            <button onclick="exportJSON()" class="text-blue-600 hover:text-blue-800 text-xs font-bold bg-blue-50 px-3 py-1.5 rounded border border-blue-100 flex items-center transition-colors">
+                                <i class="fas fa-download mr-1"></i> Backup Data
+                            </button>
+                            
+                            <label class="cursor-pointer text-emerald-600 hover:text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded border border-emerald-100 flex items-center transition-colors">
+                                <i class="fas fa-upload mr-1"></i> Restore Data
+                                <input type="file" accept=".json" class="hidden" onchange="importJSON(event)">
+                            </label>
+
+                            <button onclick="deleteLastTransaction()" class="text-orange-500 hover:text-orange-700 text-xs font-bold bg-orange-50 px-3 py-1.5 rounded border border-orange-100 flex items-center transition-colors">
                                 <i class="fas fa-undo mr-1"></i> Hapus Terakhir
                             </button>
                         </div>
@@ -181,7 +190,8 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-blue-900 text-white text-xs uppercase tracking-wider">
-                                    <th class="p-3 border-r border-blue-800 w-24">Tanggal</th> <th class="p-3 border-r border-blue-800">Keterangan / Uraian</th>
+                                    <th class="p-3 border-r border-blue-800 w-24">Tanggal</th> 
+                                    <th class="p-3 border-r border-blue-800">Keterangan / Uraian</th>
                                     <th class="p-3 border-r border-blue-800 text-right w-28">Pemasukan</th>
                                     <th class="p-3 border-r border-blue-800 text-right w-28">Pengeluaran</th>
                                     <th class="p-3 text-right w-32">Saldo</th>
@@ -278,7 +288,7 @@
                 alertBox.classList.add('hidden');
             }
 
-            cancelEdit(); // Always exit edit mode when changing months to prevent confusion
+            cancelEdit(); 
             updateUI();
         }
 
@@ -297,7 +307,6 @@
             document.getElementById('label-keluar').innerText = `Pengeluaran (${mShort})`;
             document.getElementById('table-title').innerText = `Buku Kas Umum: ${mName} ${activeYear}`;
             
-            // Set Default Date only if NOT editing
             if(!editingId) {
                 const paddedMonth = String(activeMonthIndex + 1).padStart(2, '0');
                 dateInput.value = `${activeYear}-${paddedMonth}-01`;
@@ -312,7 +321,6 @@
             
             const inputDate = document.getElementById('tgl').value;
             
-            // Logic Check Date Consistency
             const checkDate = new Date(inputDate);
             if(!editingId && checkDate.getMonth() !== activeMonthIndex) {
                  if(!confirm(`Tanggal (${inputDate}) tidak sesuai dengan Bulan yang dipilih. Tetap simpan?`)) return;
@@ -327,18 +335,15 @@
             };
 
             if (editingId) {
-                // UPDATE EXISTING
                 const index = transactions.findIndex(t => t.id === editingId);
                 if (index !== -1) {
-                    transactions[index] = { ...transactions[index], ...payload }; // Keep ID, update data
+                    transactions[index] = { ...transactions[index], ...payload }; 
                 }
                 alert("Transaksi berhasil diperbarui!");
                 cancelEdit();
             } else {
-                // CREATE NEW
                 payload.id = Date.now();
                 transactions.push(payload);
-                // Clear fields
                 document.getElementById('ket').value = '';
                 document.getElementById('jumlah').value = '';
             }
@@ -352,17 +357,14 @@
             const tx = transactions.find(t => t.id === id);
             if (!tx) return;
 
-            // Populate Form
             document.getElementById('tgl').value = tx.tgl;
             document.getElementById('jenis').value = tx.jenis;
             document.getElementById('metode').value = tx.metode;
             document.getElementById('ket').value = tx.ket;
             document.getElementById('jumlah').value = tx.jumlah;
 
-            // Change UI State
             editingId = id;
             
-            // Update Button Styling
             btnSubmit.classList.remove('bg-blue-700', 'hover:bg-blue-800');
             btnSubmit.classList.add('bg-orange-500', 'hover:bg-orange-600');
             btnSubmit.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> <span>Update Transaksi</span>';
@@ -373,14 +375,12 @@
             
             editIndicator.classList.remove('hidden');
 
-            // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function cancelEdit() {
             editingId = null;
             
-            // Reset UI
             btnSubmit.classList.add('bg-blue-700', 'hover:bg-blue-800');
             btnSubmit.classList.remove('bg-orange-500', 'hover:bg-orange-600');
             btnSubmit.innerHTML = '<i class="fas fa-save mr-2"></i> <span>Simpan Transaksi</span>';
@@ -391,7 +391,6 @@
             
             editIndicator.classList.add('hidden');
             
-            // Reset Fields (Keep date to current period default)
             const paddedMonth = String(activeMonthIndex + 1).padStart(2, '0');
             dateInput.value = `${activeYear}-${paddedMonth}-01`;
             document.getElementById('ket').value = '';
@@ -424,6 +423,57 @@
                 return d.getMonth() === activeMonthIndex && d.getFullYear() === activeYear;
             });
         }
+
+        // --- NEW: BACKUP & RESTORE JSON FUNCTIONS ---
+        function exportJSON() {
+            if(transactions.length === 0) {
+                alert("Tidak ada data untuk dibackup.");
+                return;
+            }
+            const dataStr = JSON.stringify(transactions, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            a.download = `Backup_Data_Sektor12_${dateStr}.json`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        transactions = importedData;
+                        saveData();
+                        renderData();
+                        alert("Data berhasil dipulihkan (Restore) dari file backup!");
+                        
+                        // Set the period back to the latest transaction or current month to see the data
+                        changePeriod(); 
+                    } else {
+                        alert("Format file tidak valid. Pastikan Anda mengunggah file Backup (.json) yang benar.");
+                    }
+                } catch (error) {
+                    alert("Gagal membaca file data. File rusak atau format salah.");
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset input so the same file can be uploaded again if needed
+            event.target.value = '';
+        }
+        // ---------------------------------------------
 
         function renderData() {
             tableBody.innerHTML = '';
@@ -463,7 +513,6 @@
                 const tr = document.createElement('tr');
                 tr.className = index % 2 === 0 ? "bg-white hover:bg-blue-50 transition-colors group" : "bg-gray-50 hover:bg-blue-50 transition-colors group";
                 
-                // Added Edit Button Column
                 tr.innerHTML = `
                     <td class="p-3 text-xs font-medium text-gray-600 border-r border-gray-100 whitespace-nowrap flex items-center gap-2">
                         <button onclick="startEdit(${tx.id})" class="text-blue-300 hover:text-blue-600 transition-colors p-1" title="Edit Transaksi">
@@ -512,7 +561,7 @@
             return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
         }
 
-        // --- 8. PDF Export (Unchanged) ---
+        // --- 8. PDF Export ---
         async function exportToPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
