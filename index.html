@@ -243,8 +243,27 @@
         let activeMonthIndex = new Date().getMonth();
         let activeYear = new Date().getFullYear();
 
-        // Data Storage
-        let transactions = JSON.parse(localStorage.getItem('sektor12_master_data')) || [];
+       // --- DATA STORAGE & AUTO-RECOVER YANG BENAR ---
+        let dataMaster = JSON.parse(localStorage.getItem('sektor12_master_data'));
+        let dataNov = JSON.parse(localStorage.getItem('sektor12_nov_data'));
+        let dataLama = JSON.parse(localStorage.getItem('sektor12_data'));
+
+        let transactions = [];
+
+        // Logika penarikan data: Prioritaskan master, jika kosong cari di versi lama
+        if (dataMaster && dataMaster.length > 0) {
+            transactions = dataMaster;
+        } else if (dataNov && dataNov.length > 0) {
+            transactions = dataNov;
+        } else if (dataLama && dataLama.length > 0) {
+            transactions = dataLama;
+        }
+
+        // Paksa simpan ke brankas baru agar tidak hilang lagi
+        if(transactions.length > 0) {
+            localStorage.setItem('sektor12_master_data', JSON.stringify(transactions));
+        }
+        // ----------------------------------------------
         
         // EDIT STATE
         let editingId = null; 
