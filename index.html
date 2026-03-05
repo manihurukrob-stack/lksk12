@@ -665,9 +665,13 @@
                  const trAwal = document.createElement('tr');
                  trAwal.className = "bg-amber-50/60";
                  const prevMonthText = activeMonthIndex === 0 ? `31 Des ${activeYear-1}` : `akhir ${months[activeMonthIndex-1]} ${activeYear}`;
+                 
+                 // Penggunaan Format Tanggal Baru
+                 const firstDayStr = `${activeYear}-${String(activeMonthIndex + 1).padStart(2, '0')}-01`;
+                 
                  trAwal.innerHTML = `
                     <td class="p-3 text-xs font-medium text-gray-600 border-r border-gray-100 whitespace-nowrap">
-                        1 ${shortMonths[activeMonthIndex]} ${String(activeYear).slice(-2)}
+                        ${formatDate(firstDayStr)}
                     </td>
                     <td class="p-3 text-xs text-gray-700 font-bold border-r border-gray-100">
                         Saldo Awal (Per ${prevMonthText})
@@ -746,9 +750,13 @@
             return new Intl.NumberFormat('id-ID').format(num);
         }
 
+        // FORMAT TANGGAL BARU: dd-mm-yy (contoh 01-02-25)
         function formatDate(dateStr) {
             const date = new Date(dateStr);
-            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = String(date.getFullYear()).slice(-2);
+            return `${d}-${m}-${y}`;
         }
 
         // ==========================================
@@ -813,10 +821,11 @@
             ];
 
             let runningSaldo = saldoAwal;
+            const firstDayPeriodicStr = `${year}-${String(startM + 1).padStart(2, '0')}-01`;
             
-            // Masukkan baris Saldo Awal
+            // Masukkan baris Saldo Awal dengan format baru
             ws_data.push([
-                `1-${shortMonths[startM]}-${year.toString().slice(-2)}`,
+                formatDate(firstDayPeriodicStr),
                 `Saldo Awal (Per ${startM === 0 ? '31 Des ' + (year-1) : 'akhir ' + months[startM-1] + ' ' + year})`,
                 '-',
                 saldoAwal > 0 ? saldoAwal : '',
@@ -878,11 +887,12 @@
 
             const rows = [];
             let runningSaldo = saldoAwal;
+            const firstDayPeriodicStr = `${year}-${String(startM + 1).padStart(2, '0')}-01`;
             
-            // Baris Saldo Awal
+            // Baris Saldo Awal format baru
             const txtSaldoAwal = `Saldo Awal (Per ${startM === 0 ? '31 Des ' + (year-1) : 'akhir ' + months[startM-1] + ' ' + year})`;
             rows.push([
-                `1-${shortMonths[startM]}-${year.toString().slice(-2)}`,
+                formatDate(firstDayPeriodicStr),
                 txtSaldoAwal,
                 saldoAwal > 0 ? saldoAwal.toLocaleString('id-ID') : '',
                 saldoAwal < 0 ? Math.abs(saldoAwal).toLocaleString('id-ID') : '',
@@ -919,10 +929,9 @@
 
             let finalY = doc.lastAutoTable.finalY + 10;
             
-            // Pengecekan Halaman Baru Jika Ruang Sempit
             if (finalY > 180) { doc.addPage(); finalY = 20; }
 
-            // --- TABEL SUMMARY SEPERTI REFERENSI PDF ---
+            // --- TABEL SUMMARY ---
             const totalMasukAll = sumMT + sumMB;
             const totalKeluarAll = sumKT + sumKB;
 
@@ -977,7 +986,7 @@
             doc.text("( St. Robert Manihuruk )", 50, finalY + 30, { align: "center" });
             doc.text("( St. Robin Damanik )", 160, finalY + 30, { align: "center" });
 
-            // Halaman Lampiran (Jika ada gambar)
+            // Halaman Lampiran
             const lampiranData = dataToExport.filter(t => t.lampiran);
             if (lampiranData.length > 0) {
                 for (let i = 0; i < lampiranData.length; i++) {
@@ -1033,8 +1042,10 @@
             
             if (dataToExport.length > 0 || saldoRunning !== 0) {
                 const prevMonthText = activeMonthIndex === 0 ? `31 Des ${activeYear-1}` : `akhir ${months[activeMonthIndex-1]} ${activeYear}`;
+                const firstDayStr = `${activeYear}-${String(activeMonthIndex + 1).padStart(2, '0')}-01`;
+                
                 rows.push([ 
-                    `1-${String(activeMonthIndex+1).padStart(2,'0')}-${String(activeYear).slice(-2)}`, 
+                    formatDate(firstDayStr), 
                     `Saldo Awal (Per ${prevMonthText})`, 
                     '', 
                     '', 
