@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -56,9 +57,14 @@
                 </select>
             </div>
 
-            <button onclick="exportToPDF()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg transition-all flex items-center">
-                <i class="fas fa-file-pdf mr-2"></i> Export PDF
-            </button>
+            <div class="flex space-x-2">
+                <button onclick="openPeriodicModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-semibold shadow-lg transition-all flex items-center">
+                    <i class="fas fa-layer-group mr-2"></i> Laporan Berkala
+                </button>
+                <button onclick="exportToPDF()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-semibold shadow-lg transition-all flex items-center">
+                    <i class="fas fa-file-pdf mr-2"></i> PDF Bulan Ini
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -252,6 +258,62 @@
         </div>
     </div>
 
+    <div id="periodic-modal" class="hidden fixed inset-0 z-[100] bg-slate-900/50 flex justify-center items-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-blue-900 px-6 py-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-lg"><i class="fas fa-file-export mr-2"></i>Laporan Berkala</h3>
+                <button onclick="closePeriodicModal()" class="text-blue-200 hover:text-white transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-sm text-gray-600 mb-2">Pilih rentang waktu untuk mencetak Laporan Keuangan keseluruhan beserta Summary.</p>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Dari Bulan</label>
+                        <select id="sel-start-month" class="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-sm">
+                            <option value="0">Januari</option> <option value="1">Februari</option>
+                            <option value="2">Maret</option> <option value="3">April</option>
+                            <option value="4">Mei</option> <option value="5">Juni</option>
+                            <option value="6">Juli</option> <option value="7">Agustus</option>
+                            <option value="8">September</option> <option value="9">Oktober</option>
+                            <option value="10">November</option> <option value="11">Desember</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Sampai Bulan</label>
+                        <select id="sel-end-month" class="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-sm">
+                            <option value="0">Januari</option> <option value="1">Februari</option>
+                            <option value="2">Maret</option> <option value="3">April</option>
+                            <option value="4">Mei</option> <option value="5">Juni</option>
+                            <option value="6">Juli</option> <option value="7">Agustus</option>
+                            <option value="8">September</option> <option value="9">Oktober</option>
+                            <option value="10">November</option> <option value="11" selected>Desember</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">Tahun Laporan</label>
+                    <select id="sel-periodic-year" class="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-sm">
+                        <option value="2024">2024</option>
+                        <option value="2025" selected>2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+                
+                <div class="pt-4 flex gap-3">
+                    <button onclick="exportPeriodic('pdf')" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-lg shadow-md transition-colors flex justify-center items-center">
+                        <i class="fas fa-file-pdf mr-2"></i> PDF
+                    </button>
+                    <button onclick="exportPeriodic('excel')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg shadow-md transition-colors flex justify-center items-center">
+                        <i class="fas fa-file-excel mr-2"></i> Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- 1. Global State Configuration ---
         const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -300,6 +362,11 @@
         window.onload = function() {
             selMonth.value = activeMonthIndex;
             selYear.value = activeYear;
+            
+            // Init Modal Berkala
+            document.getElementById('sel-start-month').value = 0; // Jan
+            document.getElementById('sel-periodic-year').value = activeYear;
+
             updateUI();
         };
 
@@ -369,16 +436,13 @@
                  if(!confirm(`Tanggal (${inputDate}) tidak sesuai dengan Bulan yang dipilih. Tetap simpan?`)) return;
             }
 
-            // Handle Lampiran
             let base64Lampiran = null;
             const fileInput = document.getElementById('lampiran');
             
             if (editingId && fileInput.files.length === 0) {
-                // Jika sedang edit tapi tidak upload file baru, gunakan file lama
                 const existingTx = transactions.find(t => t.id === editingId);
                 base64Lampiran = existingTx.lampiran || null;
             } else if (fileInput.files.length > 0) {
-                // Jika ada file baru yang diupload
                 base64Lampiran = await getBase64(fileInput.files[0]);
             }
 
@@ -388,7 +452,7 @@
                 metode: document.getElementById('metode').value, 
                 ket: document.getElementById('ket').value,
                 jumlah: parseFloat(document.getElementById('jumlah').value),
-                lampiran: base64Lampiran // Simpan string base64
+                lampiran: base64Lampiran 
             };
 
             if (editingId) {
@@ -403,7 +467,7 @@
                 transactions.push(payload);
                 document.getElementById('ket').value = '';
                 document.getElementById('jumlah').value = '';
-                fileInput.value = ''; // Reset lampiran
+                fileInput.value = ''; 
             }
 
             saveData();
@@ -421,7 +485,6 @@
             document.getElementById('ket').value = tx.ket;
             document.getElementById('jumlah').value = tx.jumlah;
             
-            // Reset file input dan tampilkan info jika ada lampiran lama
             document.getElementById('lampiran').value = '';
             if(tx.lampiran) {
                 document.getElementById('edit-lampiran-info').classList.remove('hidden');
@@ -465,15 +528,21 @@
             document.getElementById('jumlah').value = '';
         }
 
-        // --- Fungsi Buka/Tutup Modal Gambar ---
+        // --- Fungsi Buka/Tutup Modal ---
         window.showImage = function(base64Str) {
             document.getElementById('modal-image').src = base64Str;
             document.getElementById('image-modal').classList.remove('hidden');
         }
-        
         window.closeModal = function() {
             document.getElementById('image-modal').classList.add('hidden');
             document.getElementById('modal-image').src = '';
+        }
+
+        window.openPeriodicModal = function() {
+            document.getElementById('periodic-modal').classList.remove('hidden');
+        }
+        window.closePeriodicModal = function() {
+            document.getElementById('periodic-modal').classList.add('hidden');
         }
 
         // --- 6. Data Handling ---
@@ -482,7 +551,7 @@
             try {
                 localStorage.setItem('sektor12_master_data', JSON.stringify(transactions));
             } catch (e) {
-                alert("Penyimpanan penuh! Terlalu banyak gambar resolusi tinggi. Mohon hapus data lama atau gunakan gambar berukuran lebih kecil.");
+                alert("Penyimpanan penuh! Mohon hapus data lama atau gunakan gambar ukuran kecil.");
             }
         }
 
@@ -509,42 +578,30 @@
 
         // --- JSON BACKUP & RESTORE ---
         function exportJSON() {
-            if(transactions.length === 0) {
-                alert("Tidak ada data untuk dibackup.");
-                return;
-            }
+            if(transactions.length === 0) return alert("Tidak ada data untuk dibackup.");
             const dataStr = JSON.stringify(transactions, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            
             const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
             a.download = `Backup_Data_Sektor12_${dateStr}.json`;
-            
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 
         function importJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
                     if (Array.isArray(importedData)) {
                         transactions = importedData;
-                        saveData();
-                        renderData();
+                        saveData(); renderData(); changePeriod(); 
                         alert("Data berhasil dipulihkan (Restore) dari file backup!");
-                        changePeriod(); 
-                    } else {
-                        alert("Format file tidak valid.");
-                    }
+                    } else alert("Format file tidak valid.");
                 } catch (error) {
                     alert("Gagal membaca file data. File rusak atau format salah.");
                 }
@@ -555,21 +612,14 @@
 
         function renderData() {
             tableBody.innerHTML = '';
-            
             const filteredData = getFilteredData();
             
-            let saldo = 0;
-            let totalMasuk = 0;
-            let totalKeluar = 0;
-            let saldoTunai = 0;
-            let saldoBank = 0;
+            let saldo = 0, totalMasuk = 0, totalKeluar = 0, saldoTunai = 0, saldoBank = 0;
 
             if (filteredData.length > 0) {
-                footerDiv.classList.remove('hidden');
-                emptyState.classList.add('hidden');
+                footerDiv.classList.remove('hidden'); emptyState.classList.add('hidden');
             } else {
-                footerDiv.classList.add('hidden');
-                emptyState.classList.remove('hidden');
+                footerDiv.classList.add('hidden'); emptyState.classList.remove('hidden');
             }
 
             filteredData.forEach((tx, index) => {
@@ -577,20 +627,16 @@
                 const keluar = tx.jenis === 'pengeluaran' ? tx.jumlah : 0;
                 
                 saldo += (masuk - keluar);
-                totalMasuk += masuk;
-                totalKeluar += keluar;
+                totalMasuk += masuk; totalKeluar += keluar;
 
                 if (tx.jenis === 'pemasukan') {
-                    if(tx.metode === 'Tunai') saldoTunai += tx.jumlah;
-                    else saldoBank += tx.jumlah;
+                    if(tx.metode === 'Tunai') saldoTunai += tx.jumlah; else saldoBank += tx.jumlah;
                 } else {
-                    if(tx.metode === 'Tunai') saldoTunai -= tx.jumlah;
-                    else saldoBank -= tx.jumlah;
+                    if(tx.metode === 'Tunai') saldoTunai -= tx.jumlah; else saldoBank -= tx.jumlah;
                 }
 
                 const tr = document.createElement('tr');
                 tr.className = index % 2 === 0 ? "bg-white hover:bg-blue-50 transition-colors group" : "bg-gray-50 hover:bg-blue-50 transition-colors group";
-                
                 tr.innerHTML = `
                     <td class="p-3 text-xs font-medium text-gray-600 border-r border-gray-100 whitespace-nowrap flex items-center gap-2">
                         <button onclick="startEdit(${tx.id})" class="text-blue-300 hover:text-blue-600 transition-colors p-1" title="Edit Transaksi">
@@ -623,7 +669,6 @@
             document.getElementById('disp-keluar').innerText = formatRupiah(totalKeluar);
             document.getElementById('disp-cash').innerText = formatRupiah(saldoTunai);
             document.getElementById('disp-bank').innerText = formatRupiah(saldoBank);
-
             document.getElementById('footer-tunai').innerText = formatRupiah(saldoTunai);
             document.getElementById('footer-bank').innerText = formatRupiah(saldoBank);
             document.getElementById('footer-total').innerText = formatRupiah(saldo);
@@ -632,7 +677,6 @@
             window.exportData = filteredData;
         }
 
-        // --- 7. Helper Functions ---
         function formatRupiah(num) {
             return new Intl.NumberFormat('id-ID').format(num);
         }
@@ -642,44 +686,155 @@
             return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
         }
 
-        // --- 8. PDF Export ---
-        async function exportToPDF() {
+        // ==========================================
+        // --- FITUR BARU: LAPORAN BERKALA & EXCEL ---
+        // ==========================================
+        async function exportPeriodic(type) {
+            const startM = parseInt(document.getElementById('sel-start-month').value);
+            const endM = parseInt(document.getElementById('sel-end-month').value);
+            const year = parseInt(document.getElementById('sel-periodic-year').value);
+
+            if (startM > endM) {
+                alert("Bulan awal tidak boleh lebih besar dari bulan akhir.");
+                return;
+            }
+
+            // Hitung tanggal cutoff untuk Saldo Awal
+            const startDateObj = new Date(year, startM, 1);
+            const endDateObj = new Date(year, endM + 1, 0); 
+
+            let saldoAwal = 0;
+            let sumMasukTunai = 0, sumMasukBank = 0;
+            let sumKeluarTunai = 0, sumKeluarBank = 0;
+
+            const periodicData = [];
+
+            transactions.forEach(t => {
+                const tDate = new Date(t.tgl);
+                const m = t.jenis === 'pemasukan' ? t.jumlah : 0;
+                const k = t.jenis === 'pengeluaran' ? t.jumlah : 0;
+
+                if (tDate < startDateObj) {
+                    // Semua transaksi SEBELUM bulan yang dipilih menjadi Saldo Awal
+                    saldoAwal += (m - k);
+                } else if (tDate >= startDateObj && tDate <= endDateObj) {
+                    // Transaksi di dalam rentang waktu terpilih
+                    periodicData.push(t);
+                    if (t.jenis === 'pemasukan') {
+                        if(t.metode === 'Tunai') sumMasukTunai += t.jumlah; else sumMasukBank += t.jumlah;
+                    } else {
+                        if(t.metode === 'Tunai') sumKeluarTunai += t.jumlah; else sumKeluarBank += t.jumlah;
+                    }
+                }
+            });
+
+            periodicData.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
+
+            if (type === 'pdf') {
+                await _generatePeriodicPDF(startM, endM, year, periodicData, saldoAwal, sumMasukTunai, sumMasukBank, sumKeluarTunai, sumKeluarBank);
+            } else if (type === 'excel') {
+                _generatePeriodicExcel(startM, endM, year, periodicData, saldoAwal, sumMasukTunai, sumMasukBank, sumKeluarTunai, sumKeluarBank);
+            }
+            closePeriodicModal();
+        }
+
+        // --- EXCEL GENERATOR ---
+        function _generatePeriodicExcel(startM, endM, year, dataToExport, saldoAwal, sumMT, sumMB, sumKT, sumKB) {
+            const titleRow = [`Laporan Keuangan Sektor 12 Periode ${months[startM]}-${months[endM]} ${year}`];
+            const headerRow = ['Tanggal', 'Keterangan / Uraian', 'Metode', 'Pemasukan', 'Pengeluaran', 'Saldo'];
+            
+            const ws_data = [
+                titleRow, [''], headerRow
+            ];
+
+            let runningSaldo = saldoAwal;
+            
+            // Masukkan baris Saldo Awal
+            ws_data.push([
+                `1-${shortMonths[startM]}-${year.toString().slice(-2)}`,
+                `Saldo Per-${startM === 0 ? '31 Des ' + (year-1) : 'akhir ' + months[startM-1] + ' ' + year}`,
+                '-',
+                saldoAwal > 0 ? saldoAwal : '',
+                saldoAwal < 0 ? Math.abs(saldoAwal) : '',
+                runningSaldo
+            ]);
+
+            // Looping data
+            dataToExport.forEach(t => {
+                const m = t.jenis === 'pemasukan' ? t.jumlah : 0;
+                const k = t.jenis === 'pengeluaran' ? t.jumlah : 0;
+                runningSaldo += (m - k);
+
+                ws_data.push([
+                    formatDate(t.tgl),
+                    t.ket,
+                    t.metode,
+                    m > 0 ? m : '',
+                    k > 0 ? k : '',
+                    runningSaldo
+                ]);
+            });
+
+            // Summary Section
+            ws_data.push(['', '', '', '', '', '']);
+            ws_data.push(['SUMMARY PENERIMAAN', '', '', '', 'TOTAL', '']);
+            ws_data.push(['1. Pemasukan (Kas Tunai)', '', '', '', sumMT, '']);
+            ws_data.push(['2. Pemasukan (Bank/Transfer)', '', '', '', sumMB, '']);
+            ws_data.push(['Total Penerimaan', '', '', '', sumMT + sumMB, '']);
+            
+            ws_data.push(['', '', '', '', '', '']);
+            ws_data.push(['SUMMARY PENGELUARAN', '', '', '', 'TOTAL', '']);
+            ws_data.push(['1. Pengeluaran (Kas Tunai)', '', '', '', sumKT, '']);
+            ws_data.push(['2. Pengeluaran (Bank/Transfer)', '', '', '', sumKB, '']);
+            ws_data.push(['Total Pengeluaran', '', '', '', sumKT + sumKB, '']);
+            
+            ws_data.push(['', '', '', '', '', '']);
+            ws_data.push(['SALDO AKHIR', '', '', '', runningSaldo, '']);
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
+            XLSX.writeFile(wb, `Laporan_Sektor12_${shortMonths[startM]}-${shortMonths[endM]}_${year}.xlsx`);
+        }
+
+        // --- PDF BERKALA GENERATOR ---
+        async function _generatePeriodicPDF(startM, endM, year, dataToExport, saldoAwal, sumMT, sumMB, sumKT, sumKB) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            const currentMonthName = months[activeMonthIndex];
+            const periodText = startM === endM ? `${months[startM]} ${year}` : `${months[startM]}-${months[endM]} ${year}`;
             
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14); doc.setFont("helvetica", "bold");
             doc.text("LAPORAN KEUANGAN SEKTOR 12", 105, 15, { align: "center" });
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Periode: ${periodText}`, 105, 22, { align: "center" });
             
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text(`Bulan: ${currentMonthName} ${activeYear}`, 105, 22, { align: "center" });
-            
-            doc.setLineWidth(0.5);
-            doc.line(14, 25, 196, 25); 
+            doc.setLineWidth(0.5); doc.line(14, 25, 196, 25); 
 
             const rows = [];
-            let saldoRunning = 0;
-            const dataToExport = window.exportData || [];
-
-            if(dataToExport.length === 0) {
-                alert("Tidak ada data di bulan ini untuk diexport!");
-                return;
-            }
+            let runningSaldo = saldoAwal;
             
+            // Baris Saldo Awal
+            const txtSaldoAwal = `Saldo Per-${startM === 0 ? '31 Des ' + (year-1) : 'akhir ' + months[startM-1] + ' ' + year}`;
+            rows.push([
+                `1-${shortMonths[startM]}-${year.toString().slice(-2)}`,
+                txtSaldoAwal,
+                saldoAwal > 0 ? saldoAwal.toLocaleString('id-ID') : '',
+                saldoAwal < 0 ? Math.abs(saldoAwal).toLocaleString('id-ID') : '',
+                runningSaldo.toLocaleString('id-ID')
+            ]);
+
             dataToExport.forEach(t => {
                 let m = t.jenis === 'pemasukan' ? t.jumlah : 0;
                 let k = t.jenis === 'pengeluaran' ? t.jumlah : 0;
-                saldoRunning += (m - k);
+                runningSaldo += (m - k);
 
                 rows.push([
                     formatDate(t.tgl),
                     t.ket,
                     m > 0 ? m.toLocaleString('id-ID') : '',
                     k > 0 ? k.toLocaleString('id-ID') : '',
-                    saldoRunning.toLocaleString('id-ID')
+                    runningSaldo.toLocaleString('id-ID')
                 ]);
             });
 
@@ -688,128 +843,182 @@
                 head: [['Tanggal', 'Keterangan / Uraian', 'Pemasukan', 'Pengeluaran', 'Saldo']],
                 body: rows,
                 theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 2, textColor: [50, 50, 50] },
+                styles: { fontSize: 8.5, cellPadding: 2, textColor: [50, 50, 50] },
                 headStyles: { fillColor: [30, 64, 175], textColor: 255, halign: 'center', fontStyle: 'bold' },
                 columnStyles: {
-                    0: { cellWidth: 25 },
-                    1: { cellWidth: 'auto' },
-                    2: { halign: 'right', cellWidth: 30 },
-                    3: { halign: 'right', cellWidth: 30 },
+                    0: { cellWidth: 22 }, 1: { cellWidth: 'auto' },
+                    2: { halign: 'right', cellWidth: 28 }, 3: { halign: 'right', cellWidth: 28 },
                     4: { halign: 'right', fontStyle: 'bold', cellWidth: 30 }
                 },
             });
 
             let finalY = doc.lastAutoTable.finalY + 10;
-            if (finalY > 230) { doc.addPage(); finalY = 20; }
+            
+            // Pengecekan Halaman Baru Jika Ruang Sempit
+            if (finalY > 180) { doc.addPage(); finalY = 20; }
 
-            const calc = window.finalCalculation;
+            // --- TABEL SUMMARY SEPERTI REFERENSI PDF ---
+            const totalMasukAll = sumMT + sumMB;
+            const totalKeluarAll = sumKT + sumKB;
 
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text("Pada hari ini, Buku Kas Umum ditutup dengan keadaan sebagai berikut:", 14, finalY);
-            
-            finalY += 8;
-            doc.text("Saldo Kas Tunai", 20, finalY);
-            doc.text(": Rp " + calc.saldoTunai.toLocaleString('id-ID'), 70, finalY, { align: "right" });
-            
-            finalY += 6;
-            doc.text("Saldo Bank", 20, finalY);
-            doc.text(": Rp " + calc.saldoBank.toLocaleString('id-ID'), 70, finalY, { align: "right" });
-            
-            finalY += 2;
-            doc.line(20, finalY, 70, finalY);
-            
-            finalY += 5;
+            doc.autoTable({
+                startY: finalY,
+                head: [['Summary Penerimaan', 'Total']],
+                body: [
+                    ['1. Total Pemasukan (Kas Tunai)', sumMT.toLocaleString('id-ID')],
+                    ['2. Total Pemasukan (Bank/Transfer)', sumMB.toLocaleString('id-ID')],
+                    ['Total Pendapatan', totalMasukAll.toLocaleString('id-ID')]
+                ],
+                theme: 'grid', styles: { fontSize: 9 },
+                headStyles: { fillColor: [16, 185, 129] }, // Emerald color
+                columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right', fontStyle: 'bold' } }
+            });
+
+            finalY = doc.lastAutoTable.finalY + 5;
+
+            doc.autoTable({
+                startY: finalY,
+                head: [['Summary Pengeluaran', 'Total']],
+                body: [
+                    ['1. Total Pengeluaran (Kas Tunai)', sumKT.toLocaleString('id-ID')],
+                    ['2. Total Pengeluaran (Bank/Transfer)', sumKB.toLocaleString('id-ID')],
+                    ['Total Pengeluaran', totalKeluarAll.toLocaleString('id-ID')]
+                ],
+                theme: 'grid', styles: { fontSize: 9 },
+                headStyles: { fillColor: [239, 68, 68] }, // Red color
+                columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right', fontStyle: 'bold' } }
+            });
+
+            finalY = doc.lastAutoTable.finalY + 5;
+
+            // Box Saldo Akhir
+            doc.setFillColor(240, 249, 255);
+            doc.rect(14, finalY, 196, 10, 'F');
+            doc.setFontSize(10); doc.setFont("helvetica", "bold");
+            doc.text("SALDO AKHIR (Saldo Awal + Total Penerimaan - Total Pengeluaran) : ", 18, finalY + 7);
+            doc.text("Rp " + runningSaldo.toLocaleString('id-ID'), 196 - 18, finalY + 7, { align: "right" });
+
+            finalY += 25;
+            if (finalY > 250) { doc.addPage(); finalY = 30; }
+
+            // Tanda Tangan
+            const signDate = `Tangerang, ${new Date().getDate()}-${new Date().getMonth()+1}-${activeYear}`;
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(signDate, 160, finalY - 5, { align: "center" });
+            doc.text("Mengetahui,", 50, finalY, { align: "center" });
+            doc.text("Ketua Sektor 12", 50, finalY + 5, { align: "center" });
+            doc.text("Bendahara Sektor 12", 160, finalY + 5, { align: "center" });
             doc.setFont("helvetica", "bold");
-            doc.text("Jumlah Saldo", 20, finalY);
-            doc.text(": Rp " + calc.saldo.toLocaleString('id-ID'), 70, finalY, { align: "right" });
+            doc.text("( St. Robert Manihuruk )", 50, finalY + 30, { align: "center" });
+            doc.text("( St. Robin Damanik )", 160, finalY + 30, { align: "center" });
 
-            finalY += 15;
-            const signatureY = finalY;
-            
-            const lastDay = new Date(activeYear, activeMonthIndex + 1, 0).getDate();
-            const signDate = `Tangerang, ${lastDay}-${activeMonthIndex + 1}-${activeYear}`;
-
-            doc.setFont("helvetica", "normal");
-            doc.text(signDate, 160, signatureY - 5, { align: "center" });
-
-            doc.text("Mengetahui,", 50, signatureY, { align: "center" });
-            doc.text("Ketua Sektor 12", 50, signatureY + 5, { align: "center" });
-            doc.text("Bendahara Sektor 12", 160, signatureY + 5, { align: "center" });
-
-            doc.setFont("helvetica", "bold");
-            doc.text("( St. Robert Manihuruk )", 50, signatureY + 30, { align: "center" });
-            doc.text("( St. Robin Damanik )", 160, signatureY + 30, { align: "center" });
-
-            // ==========================================
-            // --- TAMBAHAN UNTUK HALAMAN LAMPIRAN ---
-            // ==========================================
+            // Halaman Lampiran (Jika ada gambar)
             const lampiranData = dataToExport.filter(t => t.lampiran);
-            
             if (lampiranData.length > 0) {
                 for (let i = 0; i < lampiranData.length; i++) {
                     const t = lampiranData[i];
                     doc.addPage();
-                    
-                    // Header Halaman Lampiran
-                    doc.setFontSize(14);
-                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(14); doc.setFont("helvetica", "bold");
                     doc.text("LAMPIRAN BUKTI TRANSAKSI", 105, 15, { align: "center" });
-                    
-                    doc.setFontSize(10);
-                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(10); doc.setFont("helvetica", "normal");
                     doc.text(`Tanggal: ${formatDate(t.tgl)}`, 14, 25);
                     doc.text(`Keterangan: ${t.ket}`, 14, 30);
                     doc.text(`Nominal: Rp ${t.jumlah.toLocaleString('id-ID')}`, 14, 35);
+                    doc.setLineWidth(0.5); doc.line(14, 38, 196, 38);
                     
-                    doc.setLineWidth(0.5);
-                    doc.line(14, 38, 196, 38);
-                    
-                    // Proses Merender Gambar ke PDF
                     try {
-                        const img = new Image();
-                        img.src = t.lampiran;
-                        
-                        // Tunggu gambar selesai dimuat oleh browser
-                        await new Promise((resolve) => {
-                            img.onload = resolve;
-                            img.onerror = resolve;
-                        });
-                        
-                        // Menyesuaikan ukuran maksimal gambar (A4 = 210x297 mm)
-                        const maxW = 180; // Sisakan margin 15mm kanan-kiri
-                        const maxH = 240; // Sisakan ruang atas bawah
-                        let imgW = img.width;
-                        let imgH = img.height;
-                        
+                        const img = new Image(); img.src = t.lampiran;
+                        await new Promise(r => { img.onload = r; img.onerror = r; });
+                        const maxW = 180, maxH = 240;
+                        let imgW = img.width, imgH = img.height;
                         if (imgW > 0 && imgH > 0) {
                             if (imgW > maxW || imgH > maxH) {
                                 const ratio = Math.min(maxW / imgW, maxH / imgH);
-                                imgW = imgW * ratio;
-                                imgH = imgH * ratio;
+                                imgW *= ratio; imgH *= ratio;
                             }
-                            
-                            const x = (210 - imgW) / 2; // Buat ke tengah layar horizontal
-                            const y = 45; // Mulai di bawah garis pemisah
-                            
-                            // Ambil tipe file gambar dari string Base64
-                            let imgFormat = 'JPEG';
-                            if (t.lampiran.includes('image/png')) imgFormat = 'PNG';
-                            else if (t.lampiran.includes('image/webp')) imgFormat = 'WEBP';
-                            
-                            // Masukkan ke dokumen PDF
-                            doc.addImage(t.lampiran, imgFormat, x, y, imgW, imgH);
-                        } else {
-                            doc.text("(Gambar lampiran rusak atau tidak dapat dimuat)", 14, 45);
+                            const x = (210 - imgW) / 2, y = 45;
+                            let format = t.lampiran.includes('image/png') ? 'PNG' : 'JPEG';
+                            doc.addImage(t.lampiran, format, x, y, imgW, imgH);
                         }
-                    } catch (err) {
-                        console.error("Gagal merender gambar ke PDF:", err);
-                        doc.text("(Terjadi kesalahan saat memuat gambar)", 14, 45);
-                    }
+                    } catch (e) {}
                 }
             }
-            // --- AKHIR TAMBAHAN LAMPIRAN ---
+            doc.save(`Laporan_Keuangan_Sektor12_${shortMonths[startM]}-${shortMonths[endM]}_${year}.pdf`);
+        }
 
+        // --- 8. PDF BULAN TUNGGAL (FITUR ASLI) ---
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const currentMonthName = months[activeMonthIndex];
+            
+            doc.setFontSize(14); doc.setFont("helvetica", "bold");
+            doc.text("LAPORAN KEUANGAN SEKTOR 12", 105, 15, { align: "center" });
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text(`Bulan: ${currentMonthName} ${activeYear}`, 105, 22, { align: "center" });
+            doc.setLineWidth(0.5); doc.line(14, 25, 196, 25); 
+
+            const rows = [];
+            let saldoRunning = 0;
+            const dataToExport = window.exportData || [];
+            if(dataToExport.length === 0) return alert("Tidak ada data di bulan ini untuk diexport!");
+            
+            dataToExport.forEach(t => {
+                let m = t.jenis === 'pemasukan' ? t.jumlah : 0;
+                let k = t.jenis === 'pengeluaran' ? t.jumlah : 0;
+                saldoRunning += (m - k);
+                rows.push([ formatDate(t.tgl), t.ket, m > 0 ? m.toLocaleString('id-ID') : '', k > 0 ? k.toLocaleString('id-ID') : '', saldoRunning.toLocaleString('id-ID') ]);
+            });
+
+            doc.autoTable({
+                startY: 30,
+                head: [['Tanggal', 'Keterangan / Uraian', 'Pemasukan', 'Pengeluaran', 'Saldo']],
+                body: rows, theme: 'grid', styles: { fontSize: 9, cellPadding: 2, textColor: [50, 50, 50] },
+                headStyles: { fillColor: [30, 64, 175], textColor: 255, halign: 'center', fontStyle: 'bold' },
+                columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 'auto' }, 2: { halign: 'right', cellWidth: 30 }, 3: { halign: 'right', cellWidth: 30 }, 4: { halign: 'right', fontStyle: 'bold', cellWidth: 30 } },
+            });
+
+            let finalY = doc.lastAutoTable.finalY + 10;
+            if (finalY > 230) { doc.addPage(); finalY = 20; }
+            const calc = window.finalCalculation;
+            doc.setFontSize(10); doc.setFont("helvetica", "normal");
+            doc.text("Pada hari ini, Buku Kas Umum ditutup dengan keadaan sebagai berikut:", 14, finalY);
+            finalY += 8; doc.text("Saldo Kas Tunai", 20, finalY); doc.text(": Rp " + calc.saldoTunai.toLocaleString('id-ID'), 70, finalY, { align: "right" });
+            finalY += 6; doc.text("Saldo Bank", 20, finalY); doc.text(": Rp " + calc.saldoBank.toLocaleString('id-ID'), 70, finalY, { align: "right" });
+            finalY += 2; doc.line(20, finalY, 70, finalY);
+            finalY += 5; doc.setFont("helvetica", "bold"); doc.text("Jumlah Saldo", 20, finalY); doc.text(": Rp " + calc.saldo.toLocaleString('id-ID'), 70, finalY, { align: "right" });
+            finalY += 15;
+            
+            const lastDay = new Date(activeYear, activeMonthIndex + 1, 0).getDate();
+            const signDate = `Tangerang, ${lastDay}-${activeMonthIndex + 1}-${activeYear}`;
+            doc.setFont("helvetica", "normal");
+            doc.text(signDate, 160, finalY - 5, { align: "center" });
+            doc.text("Mengetahui,", 50, finalY, { align: "center" }); doc.text("Ketua Sektor 12", 50, finalY + 5, { align: "center" }); doc.text("Bendahara Sektor 12", 160, finalY + 5, { align: "center" });
+            doc.setFont("helvetica", "bold");
+            doc.text("( St. Robert Manihuruk )", 50, finalY + 30, { align: "center" }); doc.text("( St. Robin Damanik )", 160, finalY + 30, { align: "center" });
+
+            const lampiranData = dataToExport.filter(t => t.lampiran);
+            if (lampiranData.length > 0) {
+                for (let i = 0; i < lampiranData.length; i++) {
+                    const t = lampiranData[i];
+                    doc.addPage();
+                    doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("LAMPIRAN BUKTI TRANSAKSI", 105, 15, { align: "center" });
+                    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+                    doc.text(`Tanggal: ${formatDate(t.tgl)}`, 14, 25); doc.text(`Keterangan: ${t.ket}`, 14, 30); doc.text(`Nominal: Rp ${t.jumlah.toLocaleString('id-ID')}`, 14, 35);
+                    doc.setLineWidth(0.5); doc.line(14, 38, 196, 38);
+                    try {
+                        const img = new Image(); img.src = t.lampiran;
+                        await new Promise(r => { img.onload = r; img.onerror = r; });
+                        const maxW = 180, maxH = 240; let imgW = img.width, imgH = img.height;
+                        if (imgW > 0 && imgH > 0) {
+                            if (imgW > maxW || imgH > maxH) { const ratio = Math.min(maxW / imgW, maxH / imgH); imgW *= ratio; imgH *= ratio; }
+                            const x = (210 - imgW) / 2, y = 45;
+                            let format = t.lampiran.includes('image/png') ? 'PNG' : 'JPEG';
+                            doc.addImage(t.lampiran, format, x, y, imgW, imgH);
+                        }
+                    } catch (e) {}
+                }
+            }
             doc.save(`Laporan_Keuangan_Sektor12_${currentMonthName}_${activeYear}.pdf`);
         }
     </script>
