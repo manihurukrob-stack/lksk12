@@ -549,6 +549,15 @@
             document.getElementById('jumlah').value = '';
         }
 
+        // --- FITUR HAPUS PER TRANSAKSI ---
+        window.deleteTransaction = function(id) {
+            if (confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveData();
+                renderData();
+            }
+        }
+
         // --- Fungsi Buka/Tutup Modal ---
         window.showImage = function(base64Str) {
             document.getElementById('modal-image').src = base64Str;
@@ -690,8 +699,11 @@
                 tr.className = index % 2 === 0 ? "bg-white hover:bg-blue-50 transition-colors group" : "bg-gray-50 hover:bg-blue-50 transition-colors group";
                 tr.innerHTML = `
                     <td class="p-3 text-xs font-medium text-gray-600 border-r border-gray-100 whitespace-nowrap flex items-center gap-2">
-                        <button onclick="startEdit(${tx.id})" class="text-blue-300 hover:text-blue-600 transition-colors p-1" title="Edit Transaksi">
+                        <button onclick="startEdit(${tx.id})" class="text-blue-400 hover:text-blue-600 transition-colors p-1" title="Edit Transaksi">
                             <i class="fas fa-pencil-alt"></i>
+                        </button>
+                        <button onclick="deleteTransaction(${tx.id})" class="text-red-400 hover:text-red-600 transition-colors p-1" title="Hapus Transaksi">
+                            <i class="fas fa-trash-alt"></i>
                         </button>
                         ${formatDate(tx.tgl)}
                     </td>
