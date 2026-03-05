@@ -741,6 +741,75 @@
             doc.text("( St. Robert Manihuruk )", 50, signatureY + 30, { align: "center" });
             doc.text("( St. Robin Damanik )", 160, signatureY + 30, { align: "center" });
 
+            // ==========================================
+            // --- TAMBAHAN UNTUK HALAMAN LAMPIRAN ---
+            // ==========================================
+            const lampiranData = dataToExport.filter(t => t.lampiran);
+            
+            if (lampiranData.length > 0) {
+                for (let i = 0; i < lampiranData.length; i++) {
+                    const t = lampiranData[i];
+                    doc.addPage();
+                    
+                    // Header Halaman Lampiran
+                    doc.setFontSize(14);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("LAMPIRAN BUKTI TRANSAKSI", 105, 15, { align: "center" });
+                    
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.text(`Tanggal: ${formatDate(t.tgl)}`, 14, 25);
+                    doc.text(`Keterangan: ${t.ket}`, 14, 30);
+                    doc.text(`Nominal: Rp ${t.jumlah.toLocaleString('id-ID')}`, 14, 35);
+                    
+                    doc.setLineWidth(0.5);
+                    doc.line(14, 38, 196, 38);
+                    
+                    // Proses Merender Gambar ke PDF
+                    try {
+                        const img = new Image();
+                        img.src = t.lampiran;
+                        
+                        // Tunggu gambar selesai dimuat oleh browser
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+                        
+                        // Menyesuaikan ukuran maksimal gambar (A4 = 210x297 mm)
+                        const maxW = 180; // Sisakan margin 15mm kanan-kiri
+                        const maxH = 240; // Sisakan ruang atas bawah
+                        let imgW = img.width;
+                        let imgH = img.height;
+                        
+                        if (imgW > 0 && imgH > 0) {
+                            if (imgW > maxW || imgH > maxH) {
+                                const ratio = Math.min(maxW / imgW, maxH / imgH);
+                                imgW = imgW * ratio;
+                                imgH = imgH * ratio;
+                            }
+                            
+                            const x = (210 - imgW) / 2; // Buat ke tengah layar horizontal
+                            const y = 45; // Mulai di bawah garis pemisah
+                            
+                            // Ambil tipe file gambar dari string Base64
+                            let imgFormat = 'JPEG';
+                            if (t.lampiran.includes('image/png')) imgFormat = 'PNG';
+                            else if (t.lampiran.includes('image/webp')) imgFormat = 'WEBP';
+                            
+                            // Masukkan ke dokumen PDF
+                            doc.addImage(t.lampiran, imgFormat, x, y, imgW, imgH);
+                        } else {
+                            doc.text("(Gambar lampiran rusak atau tidak dapat dimuat)", 14, 45);
+                        }
+                    } catch (err) {
+                        console.error("Gagal merender gambar ke PDF:", err);
+                        doc.text("(Terjadi kesalahan saat memuat gambar)", 14, 45);
+                    }
+                }
+            }
+            // --- AKHIR TAMBAHAN LAMPIRAN ---
+
             doc.save(`Laporan_Keuangan_Sektor12_${currentMonthName}_${activeYear}.pdf`);
         }
     </script>
