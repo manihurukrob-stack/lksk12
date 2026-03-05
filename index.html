@@ -152,6 +152,12 @@
                                 <input type="number" id="jumlah" placeholder="0" required class="w-full p-2.5 pl-10 bg-gray-50 border border-gray-300 rounded-lg outline-none text-sm font-bold text-slate-700">
                             </div>
                         </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Bukti Transfer / Lampiran (Opsional)</label>
+                            <input type="file" id="lampiran" accept="image/*" class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg outline-none text-sm transition-colors file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                            <p id="edit-lampiran-info" class="text-[10px] text-orange-600 hidden mt-1"><i class="fas fa-info-circle"></i> Transaksi ini sudah memiliki lampiran. Biarkan kosong jika tidak ingin mengubah.</p>
+                        </div>
 
                         <div class="pt-2 flex gap-2">
                             <button type="button" id="btn-cancel" onclick="cancelEdit()" class="hidden w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg shadow-sm transition-colors">
@@ -235,6 +241,17 @@
         </div>
     </main>
 
+    <div id="image-modal" class="hidden fixed inset-0 z-[100] bg-slate-900/90 flex justify-center items-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="relative w-full max-w-lg">
+            <button onclick="closeModal()" class="absolute -top-12 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="bg-white p-2 rounded-xl shadow-2xl">
+                <img id="modal-image" src="" class="w-full h-auto max-h-[80vh] object-contain rounded-lg">
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- 1. Global State Configuration ---
         const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -243,14 +260,13 @@
         let activeMonthIndex = new Date().getMonth();
         let activeYear = new Date().getFullYear();
 
-       // --- DATA STORAGE & AUTO-RECOVER YANG BENAR ---
+       // --- DATA STORAGE ---
         let dataMaster = JSON.parse(localStorage.getItem('sektor12_master_data'));
         let dataNov = JSON.parse(localStorage.getItem('sektor12_nov_data'));
         let dataLama = JSON.parse(localStorage.getItem('sektor12_data'));
 
         let transactions = [];
 
-        // Logika penarikan data: Prioritaskan master, jika kosong cari di versi lama
         if (dataMaster && dataMaster.length > 0) {
             transactions = dataMaster;
         } else if (dataNov && dataNov.length > 0) {
@@ -259,11 +275,9 @@
             transactions = dataLama;
         }
 
-        // Paksa simpan ke brankas baru agar tidak hilang lagi
         if(transactions.length > 0) {
             localStorage.setItem('sektor12_master_data', JSON.stringify(transactions));
         }
-        // ----------------------------------------------
         
         // EDIT STATE
         let editingId = null; 
@@ -334,8 +348,18 @@
             renderData();
         }
 
+        // --- Fungsi Convert Gambar ke Base64 ---
+        function getBase64(file) {
+           return new Promise((resolve, reject) => {
+             const reader = new FileReader();
+             reader.readAsDataURL(file);
+             reader.onload = () => resolve(reader.result);
+             reader.onerror = error => reject(error);
+           });
+        }
+
         // --- 4. Form Submission (Handle Add & Edit) ---
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const inputDate = document.getElementById('tgl').value;
@@ -345,12 +369,26 @@
                  if(!confirm(`Tanggal (${inputDate}) tidak sesuai dengan Bulan yang dipilih. Tetap simpan?`)) return;
             }
 
+            // Handle Lampiran
+            let base64Lampiran = null;
+            const fileInput = document.getElementById('lampiran');
+            
+            if (editingId && fileInput.files.length === 0) {
+                // Jika sedang edit tapi tidak upload file baru, gunakan file lama
+                const existingTx = transactions.find(t => t.id === editingId);
+                base64Lampiran = existingTx.lampiran || null;
+            } else if (fileInput.files.length > 0) {
+                // Jika ada file baru yang diupload
+                base64Lampiran = await getBase64(fileInput.files[0]);
+            }
+
             const payload = {
                 tgl: inputDate,
                 jenis: document.getElementById('jenis').value, 
                 metode: document.getElementById('metode').value, 
                 ket: document.getElementById('ket').value,
-                jumlah: parseFloat(document.getElementById('jumlah').value)
+                jumlah: parseFloat(document.getElementById('jumlah').value),
+                lampiran: base64Lampiran // Simpan string base64
             };
 
             if (editingId) {
@@ -365,6 +403,7 @@
                 transactions.push(payload);
                 document.getElementById('ket').value = '';
                 document.getElementById('jumlah').value = '';
+                fileInput.value = ''; // Reset lampiran
             }
 
             saveData();
@@ -381,6 +420,14 @@
             document.getElementById('metode').value = tx.metode;
             document.getElementById('ket').value = tx.ket;
             document.getElementById('jumlah').value = tx.jumlah;
+            
+            // Reset file input dan tampilkan info jika ada lampiran lama
+            document.getElementById('lampiran').value = '';
+            if(tx.lampiran) {
+                document.getElementById('edit-lampiran-info').classList.remove('hidden');
+            } else {
+                document.getElementById('edit-lampiran-info').classList.add('hidden');
+            }
 
             editingId = id;
             
@@ -409,6 +456,8 @@
             document.getElementById('btn-submit').classList.remove('w-2/3');
             
             editIndicator.classList.add('hidden');
+            document.getElementById('edit-lampiran-info').classList.add('hidden');
+            document.getElementById('lampiran').value = '';
             
             const paddedMonth = String(activeMonthIndex + 1).padStart(2, '0');
             dateInput.value = `${activeYear}-${paddedMonth}-01`;
@@ -416,10 +465,25 @@
             document.getElementById('jumlah').value = '';
         }
 
+        // --- Fungsi Buka/Tutup Modal Gambar ---
+        window.showImage = function(base64Str) {
+            document.getElementById('modal-image').src = base64Str;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+        
+        window.closeModal = function() {
+            document.getElementById('image-modal').classList.add('hidden');
+            document.getElementById('modal-image').src = '';
+        }
+
         // --- 6. Data Handling ---
         function saveData() {
             transactions.sort((a, b) => new Date(a.tgl) - new Date(b.tgl));
-            localStorage.setItem('sektor12_master_data', JSON.stringify(transactions));
+            try {
+                localStorage.setItem('sektor12_master_data', JSON.stringify(transactions));
+            } catch (e) {
+                alert("Penyimpanan penuh! Terlalu banyak gambar resolusi tinggi. Mohon hapus data lama atau gunakan gambar berukuran lebih kecil.");
+            }
         }
 
         function deleteLastTransaction() {
@@ -443,7 +507,7 @@
             });
         }
 
-        // --- NEW: BACKUP & RESTORE JSON FUNCTIONS ---
+        // --- JSON BACKUP & RESTORE ---
         function exportJSON() {
             if(transactions.length === 0) {
                 alert("Tidak ada data untuk dibackup.");
@@ -477,22 +541,17 @@
                         saveData();
                         renderData();
                         alert("Data berhasil dipulihkan (Restore) dari file backup!");
-                        
-                        // Set the period back to the latest transaction or current month to see the data
                         changePeriod(); 
                     } else {
-                        alert("Format file tidak valid. Pastikan Anda mengunggah file Backup (.json) yang benar.");
+                        alert("Format file tidak valid.");
                     }
                 } catch (error) {
                     alert("Gagal membaca file data. File rusak atau format salah.");
                 }
             };
             reader.readAsText(file);
-            
-            // Reset input so the same file can be uploaded again if needed
             event.target.value = '';
         }
-        // ---------------------------------------------
 
         function renderData() {
             tableBody.innerHTML = '';
@@ -541,7 +600,10 @@
                     </td>
                     <td class="p-3 text-xs text-gray-700 border-r border-gray-100">
                         <div class="font-semibold">${tx.ket}</div>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded ${tx.metode === 'Bank' ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'}">${tx.metode}</span>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded ${tx.metode === 'Bank' ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'}">${tx.metode}</span>
+                            ${tx.lampiran ? `<button onclick="showImage('${tx.lampiran}')" class="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-200 px-1.5 py-0.5 rounded transition-colors border border-blue-200 flex items-center gap-1"><i class="fas fa-image"></i> Lihat Bukti</button>` : ''}
+                        </div>
                     </td>
                     <td class="p-3 text-right text-xs font-bold text-emerald-600 border-r border-gray-100 tracking-wide">
                         ${masuk > 0 ? formatRupiah(masuk) : ''}
