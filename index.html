@@ -666,7 +666,6 @@
                  trAwal.className = "bg-amber-50/60";
                  const prevMonthText = activeMonthIndex === 0 ? `31 Des ${activeYear-1}` : `akhir ${months[activeMonthIndex-1]} ${activeYear}`;
                  
-                 // Penggunaan Format Tanggal Baru
                  const firstDayStr = `${activeYear}-${String(activeMonthIndex + 1).padStart(2, '0')}-01`;
                  
                  trAwal.innerHTML = `
@@ -750,13 +749,23 @@
             return new Intl.NumberFormat('id-ID').format(num);
         }
 
-        // FORMAT TANGGAL BARU: dd-mm-yy (contoh 01-02-25)
+        // FORMAT TANGGAL BARU: dd MMM yy (contoh 02 Jan 26)
         function formatDate(dateStr) {
+            let d, mIndex, y;
+            if (typeof dateStr === 'string' && dateStr.includes('-')) {
+                const parts = dateStr.split('-');
+                if (parts.length === 3 && parts[0].length === 4) {
+                    d = parts[2];
+                    mIndex = parseInt(parts[1], 10) - 1;
+                    y = parts[0].slice(-2);
+                    return `${d} ${shortMonths[mIndex]} ${y}`;
+                }
+            }
             const date = new Date(dateStr);
-            const d = String(date.getDate()).padStart(2, '0');
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const y = String(date.getFullYear()).slice(-2);
-            return `${d}-${m}-${y}`;
+            d = String(date.getDate()).padStart(2, '0');
+            mIndex = date.getMonth();
+            y = String(date.getFullYear()).slice(-2);
+            return `${d} ${shortMonths[mIndex]} ${y}`;
         }
 
         // ==========================================
@@ -863,6 +872,10 @@
             ws_data.push(['Total Pengeluaran', '', '', '', sumKT + sumKB, '']);
             
             ws_data.push(['', '', '', '', '', '']);
+            ws_data.push(['RINGKASAN KESELURUHAN', '', '', '', '', '']);
+            ws_data.push(['Saldo Awal', '', '', '', saldoAwal, '']);
+            ws_data.push(['Total Penerimaan', '', '', '', sumMT + sumMB, '']);
+            ws_data.push(['Total Pengeluaran', '', '', '', sumKT + sumKB, '']);
             ws_data.push(['SALDO AKHIR', '', '', '', runningSaldo, '']);
 
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -965,14 +978,23 @@
 
             finalY = doc.lastAutoTable.finalY + 5;
 
-            // Box Saldo Akhir
+            // Box Saldo Akhir yang Disesuaikan (Menampilkan Saldo Awal)
             doc.setFillColor(240, 249, 255);
-            doc.rect(14, finalY, 196, 10, 'F');
+            doc.rect(14, finalY, 196, 20, 'F');
             doc.setFontSize(10); doc.setFont("helvetica", "bold");
-            doc.text("SALDO AKHIR (Saldo Awal + Total Penerimaan - Total Pengeluaran) : ", 18, finalY + 7);
-            doc.text("Rp " + runningSaldo.toLocaleString('id-ID'), 196 - 18, finalY + 7, { align: "right" });
+            
+            doc.text(`Saldo Awal`, 18, finalY + 6);
+            doc.text(`: Rp ${saldoAwal.toLocaleString('id-ID')}`, 70, finalY + 6);
+            
+            doc.text(`Total Penerimaan - Pengeluaran`, 18, finalY + 11);
+            const mutasi = totalMasukAll - totalKeluarAll;
+            const mutasiText = mutasi >= 0 ? `+ Rp ${mutasi.toLocaleString('id-ID')}` : `- Rp ${Math.abs(mutasi).toLocaleString('id-ID')}`;
+            doc.text(`: ${mutasiText}`, 70, finalY + 11);
 
-            finalY += 25;
+            doc.text("SALDO AKHIR", 18, finalY + 16);
+            doc.text(`: Rp ${runningSaldo.toLocaleString('id-ID')}`, 70, finalY + 16);
+
+            finalY += 30;
             if (finalY > 250) { doc.addPage(); finalY = 30; }
 
             // Tanda Tangan
